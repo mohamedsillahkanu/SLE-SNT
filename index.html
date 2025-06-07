@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sierra Leone Malaria SNT Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.2/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f4c75 0%, #3282b8 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+        }
+        .card-header {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #0f4c75;
+            border-bottom: 3px solid #bbe1fa;
+            padding-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .section-header {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 50px 0 30px 0;
+            color: white;
+            text-align: center;
+            position: relative;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .section-header::after {
+            content: '';
+            display: block;
+            width: 120px;
+            height: 5px;
+            background: linear-gradient(to right, #bbe1fa, #3282b8);
+            margin: 15px auto 0;
+            border-radius: 3px;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #0f4c75, #3282b8);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(15, 76, 117, 0.3);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin: 15px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .metric-label {
+            font-size: 1rem;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+        .metric-subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+        .dropdown {
+            background: white;
+            border: 2px solid #3282b8;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            color: #0f4c75;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .dropdown:hover {
+            background: #f0f9ff;
+            transform: translateY(-1px);
+        }
+        .dropdown:focus {
+            outline: none;
+            ring: 2px;
+            ring-color: #3282b8;
+        }
+        .image-container {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-placeholder {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(135deg, #bbe1fa, #e0f2fe);
+            border: 2px dashed #3282b8;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0f4c75;
+            font-weight: 600;
+            text-align: center;
+            padding: 20px;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, rgba(15, 76, 117, 0.9), rgba(50, 130, 184, 0.9));
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="20" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="70" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            pointer-events: none;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .timeline-item {
+            border-left: 4px solid #3282b8;
+            padding-left: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3282b8;
+        }
+        .key-finding {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #3282b8;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .key-finding h4 {
+            color: #0f4c75;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .filter-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+        .filter-label {
+            color: white;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <h1 class="text-5xl font-bold mb-4">Sierra Leone Malaria Dashboard</h1>
+            <p class="text-xl mb-6">Epidemiological Stratification and Subnational Targeting (SNT) Analysis</p>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
+                <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                    <div class="text-2xl font-bold">2015-2023</div>
+                    <div class="text-sm">Analysis Period</div>
+                </div>
+                <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                    <div class="text-2xl font-bold">190</div>
+                    <div class="text-sm">Chiefdoms Analyzed</div>
+                </div>
+                <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                    <div class="text-2xl font-bold">WHO</div>
+                    <div class="text-sm">Methodology Applied</div>
+                </div>
+                <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                    <div class="text-2xl font-bold">21.6%</div>
+                    <div class="text-sm">Current Prevalence (2021)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h3 class="text-white text-lg font-bold mb-4">📊 Dashboard Filters & Controls</h3>
+            <div class="filter-grid">
+                <div>
+                    <div class="filter-label">Analysis Type</div>
+                    <select class="dropdown w-full" id="analysisType">
+                        <option value="epidemiological">Epidemiological Stratification</option>
+                        <option value="intervention">Intervention Coverage</option>
+                        <option value="seasonality">Seasonality Analysis</option>
+                        <option value="case-management">Case Management</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="filter-label">Time Period</div>
+                    <select class="dropdown w-full" id="timePeriod">
+                        <option value="2015-2023">2015-2023 (Full Period)</option>
+                        <option value="2019-2023">2019-2023 (Recent)</option>
+                        <option value="2021-2023">2021-2023 (Latest)</option>
+                        <option value="2023">2023 (Current Year)</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="filter-label">Geographic Level</div>
+                    <select class="dropdown w-full" id="geoLevel">
+                        <option value="national">National Overview</option>
+                        <option value="district">District Level</option>
+                        <option value="chiefdom">Chiefdom Level</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="filter-label">Indicator Type</div>
+                    <select class="dropdown w-full" id="indicatorType">
+                        <option value="incidence">Incidence (WHO Adjusted)</option>
+                        <option value="prevalence">Prevalence (Survey Data)</option>
+                        <option value="mortality">Mortality Indicators</option>
+                        <option value="coverage">Intervention Coverage</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="filter-label">Age Group</div>
+                    <select class="dropdown w-full" id="ageGroup">
+                        <option value="all">All Ages</option>
+                        <option value="under5">Under 5 Years</option>
+                        <option value="5-9">5-9 Years</option>
+                        <option value="pregnant">Pregnant Women</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics Section -->
+        <section class="mb-12">
+            <div class="stats-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Malaria Prevalence Reduction</div>
+                    <div class="metric-value">40.1% → 21.6%</div>
+                    <div class="metric-subtitle">Children under 5 (2016-2021)</div>
+                </div>
+                <div class="metric-card" style="background: linear-gradient(135deg, #dc2626, #ef4444);">
+                    <div class="metric-label">High Incidence Areas</div>
+                    <div class="metric-value">>450</div>
+                    <div class="metric-subtitle">Cases per 1,000 population</div>
+                </div>
+                <div class="metric-card" style="background: linear-gradient(135deg, #059669, #10b981);">
+                    <div class="metric-label">ITN Coverage</div>
+                    <div class="metric-value">60-80%</div>
+                    <div class="metric-subtitle">Household access (2021)</div>
+                </div>
+                <div class="metric-card" style="background: linear-gradient(135deg, #7c3aed, #8b5cf6);">
+                    <div class="metric-label">Care Seeking Rate</div>
+                    <div class="metric-value">65-85%</div>
+                    <div class="metric-subtitle">Public sector utilization</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- EPIDEMIOLOGICAL MAPS SECTION -->
+        <h2 class="section-header">🗺️ Epidemiological Stratification Maps</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Crude vs Adjusted Incidence Maps -->
+            <div class="card">
+                <div class="card-header">
+                    📈 Malaria Incidence Maps (2015-2023)
+                    <select class="dropdown" id="incidenceYear">
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                        <option value="2019">2019</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="incidenceMap">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Malaria Incidence Trends</h3>
+                            <p class="text-sm">This would display the actual incidence maps from Figure 7-11 showing:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• Crude incidence patterns</li>
+                                <li>• WHO-adjusted incidence (testing + reporting)</li>
+                                <li>• Care-seeking adjusted incidence</li>
+                                <li>• Temporal trends 2015-2023</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prevalence Distribution -->
+            <div class="card">
+                <div class="card-header">
+                    🔬 Plasmodium falciparum Prevalence (SLMIS 2021)
+                    <select class="dropdown" id="prevalenceType">
+                        <option value="rdt">RDT Results</option>
+                        <option value="microscopy">Microscopy Results</option>
+                        <option value="both">Both Methods</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="prevalenceMap">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Prevalence Distribution (Figure 13)</h3>
+                            <p class="text-sm">Regional variations in malaria prevalence:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• Northern: 28.5% (6-59 months)</li>
+                                <li>• Eastern: 32.1% (6-59 months)</li>
+                                <li>• Southern: 18.7% (6-59 months)</li>
+                                <li>• Western: 12.3% (6-59 months)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Quality Assessment -->
+            <div class="card">
+                <div class="card-header">
+                    📊 Data Quality & Reporting Patterns
+                    <select class="dropdown" id="dataQuality">
+                        <option value="reporting">Reporting Rates</option>
+                        <option value="outliers">Outlier Detection</option>
+                        <option value="consistency">Data Consistency</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="dataQualityViz">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Data Quality Assessment (Figures 2-6)</h3>
+                            <p class="text-sm">Key data quality indicators:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• Reporting completeness: 75-95%</li>
+                                <li>• Test vs outpatient inconsistencies detected</li>
+                                <li>• Outlier patterns identified</li>
+                                <li>• Temporal reporting trends</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Under-5 Mortality -->
+            <div class="card">
+                <div class="card-header">
+                    👶 Under-5 Mortality Rates (SLDHS 2019)
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="mortalityMap">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">All-Cause U5 Mortality (Figure 14)</h3>
+                            <p class="text-sm">District-level mortality patterns:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• Highest: Port Loko, Kenema, Moyamba</li>
+                                <li>• Moderate: Kambia, Bo, Karene</li>
+                                <li>• Lowest: Bonthe, Falaba</li>
+                                <li>• Used as proxy for malaria mortality</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INTERVENTION COVERAGE SECTION -->
+        <h2 class="section-header">🛡️ Intervention Coverage & Vector Control</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- ITN Distribution & Coverage -->
+            <div class="card">
+                <div class="card-header">
+                    🛏️ ITN Distribution & Coverage
+                    <select class="dropdown" id="itnType">
+                        <option value="mass">Mass Campaigns</option>
+                        <option value="routine">Routine Distribution</option>
+                        <option value="access">Household Access</option>
+                        <option value="usage">Population Usage</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="itnCoverage">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">ITN Coverage (Figures 32-39)</h3>
+                            <p class="text-sm">Coverage patterns:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• Mass campaigns: 72%→91% (2017-2023)</li>
+                                <li>• Household access: 60-80%</li>
+                                <li>• Population usage: <70%</li>
+                                <li>• Rural vs urban disparities</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Case Management Quality -->
+            <div class="card">
+                <div class="card-header">
+                    🏥 Case Management Quality
+                    <select class="dropdown" id="caseManagement">
+                        <option value="testing">Testing Rates</option>
+                        <option value="treatment">Treatment Rates</option>
+                        <option value="chw">CHW Performance</option>
+                        <option value="stockouts">Stock-outs</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="caseManagementViz">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Case Management (Figures 22-31)</h3>
+                            <p class="text-sm">Performance indicators:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• Testing rates: 75-95% (varies by chiefdom)</li>
+                                <li>• Treatment rates: 85-95%</li>
+                                <li>• CHW testing: 78% average</li>
+                                <li>• RDT stockouts: <10% target</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Healthcare Access -->
+            <div class="card">
+                <div class="card-header">
+                    🏨 Healthcare Access & CHW Distribution
+                    <select class="dropdown" id="accessType">
+                        <option value="facilities">Health Facilities</option>
+                        <option value="chw">CHW Distribution</option>
+                        <option value="coverage">5km Coverage</option>
+                        <option value="density">Population Density</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="accessMap">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Healthcare Access (Figures 17-21)</h3>
+                            <p class="text-sm">Access indicators:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• 65% within 5km of health facility</li>
+                                <li>• CHW density: 2.1/1000 in remote areas</li>
+                                <li>• Hospital density: 0.6/100k average</li>
+                                <li>• Northern/eastern gaps identified</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEASONALITY & TARGETING SECTION -->
+        <h2 class="section-header">📅 Seasonality Analysis & SMC Targeting</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Seasonality Patterns -->
+            <div class="card">
+                <div class="card-header">
+                    🌧️ Rainfall vs Malaria Cases Seasonality
+                    <select class="dropdown" id="seasonalityType">
+                        <option value="rainfall">Rainfall Patterns</option>
+                        <option value="cases">Case Patterns</option>
+                        <option value="combined">Combined Analysis</option>
+                        <option value="smc">SMC Targeting</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="seasonalityViz">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Seasonality Analysis (Figures 47-52)</h3>
+                            <p class="text-sm">Seasonal patterns for intervention timing:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• April-July: Northern districts peak</li>
+                                <li>• June-September: Central regions peak</li>
+                                <li>• August-November: Southern areas peak</li>
+                                <li>• 4-5 month peak periods identified</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IRS & Other Vector Control -->
+            <div class="card">
+                <div class="card-header">
+                    🦟 Vector Control Interventions
+                    <select class="dropdown" id="vectorControl">
+                        <option value="irs">IRS Implementation</option>
+                        <option value="resistance">Insecticide Resistance</option>
+                        <option value="entomology">Entomological Sites</option>
+                        <option value="durability">Net Durability</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="vectorControlViz">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Vector Control (Figures 40-46)</h3>
+                            <p class="text-sm">Implementation status:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• IRS: 12 chiefdoms covered</li>
+                                <li>• Coverage: 85-95% in target areas</li>
+                                <li>• Net durability: 85-92% at 7 months</li>
+                                <li>• Resistance monitoring sites active</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preventive Treatments -->
+            <div class="card">
+                <div class="card-header">
+                    💊 Preventive Treatments Coverage
+                    <select class="dropdown" id="preventiveType">
+                        <option value="iptp">IPTp Coverage</option>
+                        <option value="ipti">IPTi/PMC Coverage</option>
+                        <option value="vaccine">Malaria Vaccine</option>
+                        <option value="trends">Coverage Trends</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="preventiveViz">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Preventive Treatments (Figures 42-45)</h3>
+                            <p class="text-sm">Coverage indicators:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• IPTp coverage: ~75% operational</li>
+                                <li>• IPTi coverage: ~68% of target population</li>
+                                <li>• Vaccine: Scale-up planned (85% GAVI)</li>
+                                <li>• Data quality issues noted (>100% coverage)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Care Seeking Behavior -->
+            <div class="card">
+                <div class="card-header">
+                    🏥 Care Seeking Patterns & Behavior
+                    <select class="dropdown" id="careSeekingType">
+                        <option value="overall">Overall Patterns</option>
+                        <option value="sector">Public vs Private</option>
+                        <option value="demographics">By Demographics</option>
+                        <option value="geographic">Geographic Variation</option>
+                    </select>
+                </div>
+                <div class="image-container">
+                    <div class="image-placeholder" id="careSeekingViz">
+                        <div>
+                            <h3 class="text-lg font-bold mb-2">Care Seeking Behavior (Figure 12)</h3>
+                            <p class="text-sm">Utilization patterns:</p>
+                            <ul class="text-xs mt-2 text-left">
+                                <li>• Public sector: 65-85% utilization</li>
+                                <li>• Private sector: Low utilization</li>
+                                <li>• Rural vs urban: Minimal differences</li>
+                                <li>• Wealth quintiles: Similar patterns</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STRATEGIC RECOMMENDATIONS SECTION -->
+        <h2 class="section-header">💡 Strategic Recommendations & Next Steps</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="card">
+                <div class="card-header">
+                    🎯 Risk-Based Targeting Strategy
+                </div>
+                <div class="space-y-4">
+                    <div class="timeline-item">
+                        <h4 class="font-bold text-blue-800">High Transmission Areas (>450/1000)</h4>
+                        <p class="text-sm">Intensive intervention package: IRS + enhanced case management + community mobilization + SMC where seasonal</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4 class="font-bold text-blue-800">Moderate Transmission Areas (100-450/1000)</h4>
+                        <p class="text-sm">Standard package: ITN distribution + improved case management + seasonal interventions + targeted IRS</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4 class="font-bold text-blue-800">Low Transmission Areas (<100/1000)</h4>
+                        <p class="text-sm">Surveillance strengthening + maintain ITN coverage + elimination-focused strategies + outbreak response</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4 class="font-bold text-blue-800">Cross-cutting Priorities</h4>
+                        <p class="text-sm">Data quality improvement + CHW expansion + supply chain strengthening + community engagement
